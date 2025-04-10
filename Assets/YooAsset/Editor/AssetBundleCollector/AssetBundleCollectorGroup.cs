@@ -93,8 +93,10 @@ namespace YooAsset.Editor
                 {
                     if (result.ContainsKey(collectAsset.AssetInfo.AssetPath) == false)
                         result.Add(collectAsset.AssetInfo.AssetPath, collectAsset);
-                    else
-                        throw new Exception($"The collecting asset file is existed : {collectAsset.AssetInfo.AssetPath} in group : {GroupName}");
+                    // 为了实现同目录下部分文件夹设置另外的打包规则，注释掉这段异常，
+                    // 使用的时候需要保证顺序，打包规则顺序排前面的优先生效
+                    // else
+                    //     throw new Exception($"The collecting asset file is existed : {collectAsset.AssetInfo.AssetPath} in group : {GroupName}");
                 }
             }
 
