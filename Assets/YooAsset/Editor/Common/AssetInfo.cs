@@ -62,6 +62,14 @@ namespace YooAsset.Editor
                 return false;
         }
 
+        /// <summary>
+        /// 是否为材质资源
+        /// </summary>
+        public bool IsMaterialAsset()
+        {
+            return AssetType == typeof(UnityEngine.Material);
+        }
+
         public int CompareTo(AssetInfo other)
         {
             return this.AssetPath.CompareTo(other.AssetPath);

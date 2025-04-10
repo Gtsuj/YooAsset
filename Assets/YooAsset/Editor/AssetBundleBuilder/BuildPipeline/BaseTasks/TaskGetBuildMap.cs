@@ -212,6 +212,12 @@ namespace YooAsset.Editor
             if (packRuleResult.IsValid() == false)
                 return;
 
+            // 材质球允许冗余
+            if (buildAssetInfo.AssetInfo.IsMaterialAsset())
+            {
+                return;
+            }
+            
             // 处理单个引用的共享资源
             if (buildAssetInfo.GetReferenceBundleCount() <= 1)
             {
