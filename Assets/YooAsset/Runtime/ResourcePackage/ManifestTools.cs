@@ -259,15 +259,16 @@ namespace YooAsset
                 else
                     manifest.AssetPathMapping1.Add(location, packageAsset.AssetPath);
 
+                // 没啥必要再加一遍无后缀名路径的映射，直接干掉
                 // 添加无后缀名路径的映射
-                string locationWithoutExtension = Path.ChangeExtension(location, null);
-                if (ReferenceEquals(location, locationWithoutExtension) == false)
-                {
-                    if (manifest.AssetPathMapping1.ContainsKey(locationWithoutExtension))
-                        YooLogger.Warning($"Location have existed : {locationWithoutExtension}");
-                    else
-                        manifest.AssetPathMapping1.Add(locationWithoutExtension, packageAsset.AssetPath);
-                }
+                // string locationWithoutExtension = Path.ChangeExtension(location, null);
+                // if (ReferenceEquals(location, locationWithoutExtension) == false)
+                // {
+                //     if (manifest.AssetPathMapping1.ContainsKey(locationWithoutExtension))
+                //         YooLogger.Warning($"Location have existed : {locationWithoutExtension}");
+                //     else
+                //         manifest.AssetPathMapping1.Add(locationWithoutExtension, packageAsset.AssetPath);
+                // }
             }
 
             // 添加可寻址地址
