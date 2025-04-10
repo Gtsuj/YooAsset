@@ -85,8 +85,9 @@ namespace YooAsset
             // 设置请求URL
             if (string.IsNullOrEmpty(param.ImportFilePath))
             {
-                param.MainURL = _fileSystem.RemoteServices.GetRemoteMainURL(bundle.FileName);
-                param.FallbackURL = _fileSystem.RemoteServices.GetRemoteFallbackURL(bundle.FileName);
+                // 资源单独地址下载
+                param.MainURL = _fileSystem.RemoteServices.GetRemoteAssetURL(bundle.FileName);
+                param.FallbackURL = _fileSystem.RemoteServices.GetRemoteAssetFallbackURL(bundle.FileName);
             }
             else
             {

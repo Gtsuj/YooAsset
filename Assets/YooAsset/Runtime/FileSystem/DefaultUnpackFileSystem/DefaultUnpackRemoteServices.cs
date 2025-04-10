@@ -20,6 +20,16 @@ namespace YooAsset
             return GetFileLoadURL(fileName);
         }
 
+        public string GetRemoteAssetURL(string fileName)
+        {
+            return GetFileLoadURL(fileName);
+        }
+
+        public string GetRemoteAssetFallbackURL(string fileName)
+        {
+            return GetFileLoadURL(fileName);
+        }
+
         private string GetFileLoadURL(string fileName)
         {
             if (_mapping.TryGetValue(fileName, out string url) == false)

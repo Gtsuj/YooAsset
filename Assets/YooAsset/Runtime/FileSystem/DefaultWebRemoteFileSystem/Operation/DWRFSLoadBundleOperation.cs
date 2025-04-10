@@ -35,8 +35,8 @@ namespace YooAsset
                 if (_downloadAssetBundleOp == null)
                 {
                     DownloadParam downloadParam = new DownloadParam(int.MaxValue, 60);
-                    downloadParam.MainURL = _fileSystem.RemoteServices.GetRemoteMainURL(_bundle.FileName);
-                    downloadParam.FallbackURL = _fileSystem.RemoteServices.GetRemoteFallbackURL(_bundle.FileName);
+                    downloadParam.MainURL = _fileSystem.RemoteServices.GetRemoteAssetURL(_bundle.FileName);
+                    downloadParam.FallbackURL = _fileSystem.RemoteServices.GetRemoteAssetFallbackURL(_bundle.FileName);
 
                     if (_bundle.Encrypted)
                     {
