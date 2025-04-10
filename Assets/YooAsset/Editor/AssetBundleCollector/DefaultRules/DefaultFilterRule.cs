@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEngine;
 using UnityEditor;
 
@@ -70,6 +71,19 @@ namespace YooAsset.Editor
         public bool IsCollectAsset(FilterRuleData data)
         {
             return Path.GetExtension(data.AssetPath) == ".shadervariants";
+        }
+    }
+
+    /// <summary>
+    /// 收集指定后缀名的资源，UserData填参数用|分割
+    /// </summary>
+    [DisplayName("自定义收集(后缀1|后缀2)")]
+    public class CollectCustom : IFilterRule
+    {
+        public bool IsCollectAsset(FilterRuleData data)
+        {
+            string[] collectExtension = data.UserData.Split('|');
+            return collectExtension.Contains(Path.GetExtension(data.AssetPath).Replace(".", string.Empty).ToLower());
         }
     }
 }

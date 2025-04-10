@@ -40,4 +40,16 @@ namespace YooAsset.Editor
             return $"{fileInfo.Directory.Name}_{fileName}";
         }
     }
+
+    /// <summary>
+    /// 为了减少address重名冲突，附带上后缀
+    /// </summary>
+    [DisplayName("定位地址: 文件名.后缀")]
+    public class AddressByFileNameExtension : IAddressRule
+    {
+        string IAddressRule.GetAssetAddress(AddressRuleData data)
+        {
+            return Path.GetFileName(data.AssetPath);
+        }
+    }
 }
