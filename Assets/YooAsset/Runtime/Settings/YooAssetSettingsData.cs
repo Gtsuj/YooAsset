@@ -14,7 +14,7 @@ namespace YooAsset
 #endif
 
         private static YooAssetSettings _setting = null;
-        internal static YooAssetSettings Setting
+        public static YooAssetSettings Setting
         {
             get
             {
