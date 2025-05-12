@@ -1,15 +1,8 @@
 {
-    "name": "YooAsset.Editor",
+    "name": "YooAsset.Cryptography",
     "rootNamespace": "",
-    "references": [
-        "YooAsset",
-        "YooAsset.Cryptography",
-        "Unity.ScriptableBuildPipeline",
-        "Unity.ScriptableBuildPipeline.Editor"
-    ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "references": [],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
