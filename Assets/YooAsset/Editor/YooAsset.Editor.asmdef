@@ -3,6 +3,7 @@
     "rootNamespace": "",
     "references": [
         "YooAsset",
+        "YooAsset.Encryption",
         "Unity.ScriptableBuildPipeline",
         "Unity.ScriptableBuildPipeline.Editor"
     ],
