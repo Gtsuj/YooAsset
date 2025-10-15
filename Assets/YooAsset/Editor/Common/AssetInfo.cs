@@ -56,7 +56,7 @@ namespace YooAsset.Editor
         /// </summary>
         public bool IsShaderAsset()
         {
-            if (AssetType == typeof(UnityEngine.Shader) || AssetType == typeof(UnityEngine.ShaderVariantCollection))
+            if (AssetType == typeof(UnityEngine.Shader) || AssetType == typeof(UnityEngine.ShaderVariantCollection) || AssetType == typeof(UnityEngine.ComputeShader))
                 return true;
             else
                 return false;
