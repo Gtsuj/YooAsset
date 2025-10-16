@@ -44,7 +44,7 @@ namespace YooAsset
         /// <summary>
         /// 序列化（二进制文件）
         /// </summary>
-        public static void SerializeToBinary(string savePath, PackageManifest manifest)
+        public static void SerializeToBinary(string savePath, PackageManifest manifest, IManifestProcessServices services)
         {
             using (FileStream fs = new FileStream(savePath, FileMode.Create))
             {
@@ -59,6 +59,7 @@ namespace YooAsset
 
                 // 写入文件头信息
                 buffer.WriteBool(manifest.EnableAddressable);
+                buffer.WriteBool(manifest.SupportExtensionless);
                 buffer.WriteBool(manifest.LocationToLower);
                 buffer.WriteBool(manifest.IncludeAssetGUID);
                 buffer.WriteInt32(manifest.OutputNameStyle);
@@ -89,16 +90,27 @@ namespace YooAsset
                     buffer.WriteUTF8(packageBundle.BundleName);
                     buffer.WriteUInt32(packageBundle.UnityCRC);
                     buffer.WriteUTF8(packageBundle.FileHash);
-                    buffer.WriteUTF8(packageBundle.FileCRC);
+                    buffer.WriteUInt32(packageBundle.FileCRC);
                     buffer.WriteInt64(packageBundle.FileSize);
                     buffer.WriteBool(packageBundle.Encrypted);
                     buffer.WriteUTF8Array(packageBundle.Tags);
                     buffer.WriteInt32Array(packageBundle.DependBundleIDs);
                 }
 
-                // 写入文件流
-                buffer.WriteToStream(fs);
-                fs.Flush();
+                // 清单处理操作
+                if (services != null)
+                {
+                    var tempBytes = buffer.GetBytes();
+                    var resultBytes = services.ProcessManifest(tempBytes);
+                    fs.Write(resultBytes, 0, resultBytes.Length);
+                    fs.Flush();
+                }
+                else
+                {
+                    // 写入文件流
+                    buffer.WriteToStream(fs);
+                    fs.Flush();
+                }
             }
         }
 
@@ -113,10 +125,19 @@ namespace YooAsset
         /// <summary>
         /// 反序列化（二进制文件）
         /// </summary>
-        public static PackageManifest DeserializeFromBinary(byte[] binaryData)
+        public static PackageManifest DeserializeFromBinary(byte[] binaryData, IManifestRestoreServices services)
         {
             // 创建缓存器
-            BufferReader buffer = new BufferReader(binaryData);
+            BufferReader buffer;
+            if (services != null)
+            {
+                var resultBytes = services.RestoreManifest(binaryData);
+                buffer = new BufferReader(resultBytes);
+            }
+            else
+            {
+                buffer = new BufferReader(binaryData);
+            }
 
             // 读取文件标记
             uint fileSign = buffer.ReadUInt32();
@@ -133,6 +154,7 @@ namespace YooAsset
                 // 读取文件头信息
                 manifest.FileVersion = fileVersion;
                 manifest.EnableAddressable = buffer.ReadBool();
+                manifest.SupportExtensionless = buffer.ReadBool();
                 manifest.LocationToLower = buffer.ReadBool();
                 manifest.IncludeAssetGUID = buffer.ReadBool();
                 manifest.OutputNameStyle = buffer.ReadInt32();
@@ -170,7 +192,7 @@ namespace YooAsset
                     packageBundle.BundleName = buffer.ReadUTF8();
                     packageBundle.UnityCRC = buffer.ReadUInt32();
                     packageBundle.FileHash = buffer.ReadUTF8();
-                    packageBundle.FileCRC = buffer.ReadUTF8();
+                    packageBundle.FileCRC = buffer.ReadUInt32();
                     packageBundle.FileSize = buffer.ReadInt64();
                     packageBundle.Encrypted = buffer.ReadBool();
                     packageBundle.Tags = buffer.ReadUTF8Array();
@@ -259,16 +281,18 @@ namespace YooAsset
                 else
                     manifest.AssetPathMapping1.Add(location, packageAsset.AssetPath);
 
-                // 没啥必要再加一遍无后缀名路径的映射，直接干掉
                 // 添加无后缀名路径的映射
-                // string locationWithoutExtension = Path.ChangeExtension(location, null);
-                // if (ReferenceEquals(location, locationWithoutExtension) == false)
-                // {
-                //     if (manifest.AssetPathMapping1.ContainsKey(locationWithoutExtension))
-                //         YooLogger.Warning($"Location have existed : {locationWithoutExtension}");
-                //     else
-                //         manifest.AssetPathMapping1.Add(locationWithoutExtension, packageAsset.AssetPath);
-                // }
+                if (manifest.SupportExtensionless)
+                {
+                    string locationWithoutExtension = Path.ChangeExtension(location, null);
+                    if (ReferenceEquals(location, locationWithoutExtension) == false)
+                    {
+                        if (manifest.AssetPathMapping1.ContainsKey(locationWithoutExtension))
+                            YooLogger.Warning($"Location have existed : {locationWithoutExtension}");
+                        else
+                            manifest.AssetPathMapping1.Add(locationWithoutExtension, packageAsset.AssetPath);
+                    }
+                }
             }
 
             // 添加可寻址地址
@@ -314,27 +338,6 @@ namespace YooAsset
             manifest.BundleDic3.Add(packageBundle.BundleGUID, packageBundle);
         }
         #endregion
-
-        /// <summary>
-        /// 注意：该类拷贝自编辑器
-        /// </summary>
-        private enum EFileNameStyle
-        {
-            /// <summary>
-            /// 哈希值名称
-            /// </summary>
-            HashName = 0,
-
-            /// <summary>
-            /// 资源包名称（不推荐）
-            /// </summary>
-            BundleName = 1,
-
-            /// <summary>
-            /// 资源包名称 + 哈希值名称
-            /// </summary>
-            BundleName_HashName = 2,
-        }
 
         /// <summary>
         /// 获取资源文件的后缀名

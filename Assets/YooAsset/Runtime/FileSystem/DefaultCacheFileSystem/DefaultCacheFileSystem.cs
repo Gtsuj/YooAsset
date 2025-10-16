@@ -2,6 +2,7 @@
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine;
 
 namespace YooAsset
 {
@@ -58,12 +59,7 @@ namespace YooAsset
         /// <summary>
         /// 自定义参数：远程服务接口
         /// </summary>
-        public IRemoteServices RemoteServices { private set; get; } = null;
-
-        /// <summary>
-        /// 自定义参数：初始化的时候缓存文件校验级别
-        /// </summary>
-        public EFileVerifyLevel FileVerifyLevel { private set; get; } = EFileVerifyLevel.Middle;
+        public IRemoteServices RemoteServices { private set; get; }
 
         /// <summary>
         /// 自定义参数：覆盖安装缓存清理模式
@@ -71,9 +67,24 @@ namespace YooAsset
         public EOverwriteInstallClearMode InstallClearMode { private set; get; } = EOverwriteInstallClearMode.ClearAllManifestFiles;
 
         /// <summary>
+        /// 自定义参数：初始化的时候缓存文件校验级别
+        /// </summary>
+        public EFileVerifyLevel FileVerifyLevel { private set; get; } = EFileVerifyLevel.Middle;
+
+        /// <summary>
+        /// 自定义参数：初始化的时候缓存文件校验最大并发数
+        /// </summary>
+        public int FileVerifyMaxConcurrency { private set; get; } = int.MaxValue;
+
+        /// <summary>
         /// 自定义参数：数据文件追加文件格式
         /// </summary>
         public bool AppendFileExtension { private set; get; } = false;
+
+        /// <summary>
+        /// 自定义参数：禁用边玩边下机制
+        /// </summary>
+        public bool DisableOnDemandDownload { private set; get; } = false;
 
         /// <summary>
         /// 自定义参数：最大并发连接数
@@ -84,6 +95,11 @@ namespace YooAsset
         /// 自定义参数：每帧发起的最大请求数
         /// </summary>
         public int DownloadMaxRequestPerFrame { private set; get; } = int.MaxValue;
+
+        /// <summary>
+        /// 自定义参数：下载任务的看门狗机制监控时间
+        /// </summary>
+        public int DownloadWatchDogTime { private set; get; } = int.MaxValue;
 
         /// <summary>
         /// 自定义参数：启用断点续传的最小尺寸
@@ -99,6 +115,16 @@ namespace YooAsset
         ///  自定义参数：解密方法类
         /// </summary>
         public IDecryptionServices DecryptionServices { private set; get; }
+
+        /// <summary>
+        /// 自定义参数：资源清单服务类
+        /// </summary>
+        public IManifestRestoreServices ManifestServices { private set; get; }
+
+        /// <summary>
+        /// 自定义参数：拷贝内置文件服务类
+        /// </summary>
+        public ICopyLocalFileServices CopyLocalFileServices { private set; get; }
         #endregion
 
 
@@ -120,48 +146,59 @@ namespace YooAsset
             var operation = new DCFSRequestPackageVersionOperation(this, appendTimeTicks, timeout);
             return operation;
         }
-        public virtual FSClearCacheFilesOperation ClearCacheFilesAsync(PackageManifest manifest, string clearMode, object clearParam)
+        public virtual FSClearCacheFilesOperation ClearCacheFilesAsync(PackageManifest manifest, ClearCacheFilesOptions options)
         {
-            if (clearMode == EFileClearMode.ClearAllBundleFiles.ToString())
+            if (options.ClearMode == EFileClearMode.ClearAllBundleFiles.ToString())
             {
                 var operation = new ClearAllCacheBundleFilesOperation(this);
                 return operation;
             }
-            else if (clearMode == EFileClearMode.ClearUnusedBundleFiles.ToString())
+            else if (options.ClearMode == EFileClearMode.ClearUnusedBundleFiles.ToString())
             {
                 var operation = new ClearUnusedCacheBundleFilesOperation(this, manifest);
                 return operation;
             }
-            else if (clearMode == EFileClearMode.ClearBundleFilesByTags.ToString())
+            else if (options.ClearMode == EFileClearMode.ClearBundleFilesByTags.ToString())
             {
-                var operation = new ClearCacheBundleFilesByTagsOperaiton(this, manifest, clearParam);
+                var operation = new ClearCacheBundleFilesByTagsOperaiton(this, manifest, options.ClearParam);
                 return operation;
             }
-            else if (clearMode == EFileClearMode.ClearAllManifestFiles.ToString())
+            else if (options.ClearMode == EFileClearMode.ClearAllManifestFiles.ToString())
             {
                 var operation = new ClearAllCacheManifestFilesOperation(this);
                 return operation;
             }
-            else if (clearMode == EFileClearMode.ClearUnusedManifestFiles.ToString())
+            else if (options.ClearMode == EFileClearMode.ClearUnusedManifestFiles.ToString())
             {
                 var operation = new ClearUnusedCacheManifestFilesOperation(this, manifest);
                 return operation;
             }
             else
             {
-                string error = $"Invalid clear mode : {clearMode}";
+                string error = $"Invalid clear mode : {options.ClearMode}";
                 var operation = new FSClearCacheFilesCompleteOperation(error);
                 return operation;
             }
         }
-        public virtual FSDownloadFileOperation DownloadFileAsync(PackageBundle bundle, DownloadParam param)
+        public virtual FSDownloadFileOperation DownloadFileAsync(PackageBundle bundle, DownloadFileOptions options)
         {
-            var downloader = DownloadCenter.DownloadFileAsync(bundle, param);
-            downloader.Reference(); //增加下载器的引用计数
+            // 获取下载地址
+            if (string.IsNullOrEmpty(options.ImportFilePath))
+            {
+                // 注意：如果是解压文件系统类，这里会返回本地内置文件的下载路径
+                string mainURL = RemoteServices.GetRemoteMainURL(bundle.FileName);
+                string fallbackURL = RemoteServices.GetRemoteFallbackURL(bundle.FileName);
+                options.SetURL(mainURL, fallbackURL);
+            }
+            else
+            {
+                // 注意：把本地导入文件路径转换为下载器请求地址
+                string mainURL = DownloadSystemHelper.ConvertToWWWPath(options.ImportFilePath);
+                options.SetURL(mainURL, mainURL);
+            }
 
-            // 注意：将下载器进行包裹，可以避免父类任务终止的时候，连带子任务里的下载器也一起被终止！
-            var wrapper = new DownloadFileWrapper(downloader);
-            return wrapper;
+            var downloader = new DownloadPackageBundleOperation(this, bundle, options);
+            return downloader;
         }
         public virtual FSLoadBundleOperation LoadBundleFile(PackageBundle bundle)
         {
@@ -189,25 +226,41 @@ namespace YooAsset
             {
                 RemoteServices = (IRemoteServices)value;
             }
+            else if (name == FileSystemParametersDefine.INSTALL_CLEAR_MODE)
+            {
+                InstallClearMode = (EOverwriteInstallClearMode)value;
+            }
             else if (name == FileSystemParametersDefine.FILE_VERIFY_LEVEL)
             {
                 FileVerifyLevel = (EFileVerifyLevel)value;
             }
-            else if (name == FileSystemParametersDefine.INSTALL_CLEAR_MODE)
+            else if (name == FileSystemParametersDefine.FILE_VERIFY_MAX_CONCURRENCY)
             {
-                InstallClearMode = (EOverwriteInstallClearMode)value;
+                int convertValue = Convert.ToInt32(value);
+                FileVerifyMaxConcurrency = Mathf.Clamp(convertValue, 1, int.MaxValue);
             }
             else if (name == FileSystemParametersDefine.APPEND_FILE_EXTENSION)
             {
                 AppendFileExtension = Convert.ToBoolean(value);
             }
+            else if (name == FileSystemParametersDefine.DISABLE_ONDEMAND_DOWNLOAD)
+            {
+                DisableOnDemandDownload = Convert.ToBoolean(value);
+            }
             else if (name == FileSystemParametersDefine.DOWNLOAD_MAX_CONCURRENCY)
             {
-                DownloadMaxConcurrency = Convert.ToInt32(value);
+                int convertValue = Convert.ToInt32(value);
+                DownloadMaxConcurrency = Mathf.Clamp(convertValue, 1, int.MaxValue);
             }
             else if (name == FileSystemParametersDefine.DOWNLOAD_MAX_REQUEST_PER_FRAME)
             {
-                DownloadMaxRequestPerFrame = Convert.ToInt32(value);
+                int convertValue = Convert.ToInt32(value);
+                DownloadMaxRequestPerFrame = Mathf.Clamp(convertValue, 1, int.MaxValue);
+            }
+            else if (name == FileSystemParametersDefine.DOWNLOAD_WATCH_DOG_TIME)
+            {
+                int convertValue = Convert.ToInt32(value);
+                DownloadWatchDogTime = Mathf.Clamp(convertValue, 1, int.MaxValue);
             }
             else if (name == FileSystemParametersDefine.RESUME_DOWNLOAD_MINMUM_SIZE)
             {
@@ -220,6 +273,14 @@ namespace YooAsset
             else if (name == FileSystemParametersDefine.DECRYPTION_SERVICES)
             {
                 DecryptionServices = (IDecryptionServices)value;
+            }
+            else if (name == FileSystemParametersDefine.MANIFEST_SERVICES)
+            {
+                ManifestServices = (IManifestRestoreServices)value;
+            }
+            else if (name == FileSystemParametersDefine.COPY_LOCAL_FILE_SERVICES)
+            {
+                CopyLocalFileServices = (ICopyLocalFileServices)value;
             }
             else
             {
@@ -455,22 +516,22 @@ namespace YooAsset
         }
 
         private readonly BufferWriter _sharedBuffer = new BufferWriter(1024);
-        public void WriteBundleInfoFile(string filePath, string dataFileCRC, long dataFileSize)
+        public void WriteBundleInfoFile(string filePath, uint dataFileCRC, long dataFileSize)
         {
             using (FileStream fs = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.Read))
             {
                 _sharedBuffer.Clear();
-                _sharedBuffer.WriteUTF8(dataFileCRC);
+                _sharedBuffer.WriteUInt32(dataFileCRC);
                 _sharedBuffer.WriteInt64(dataFileSize);
                 _sharedBuffer.WriteToStream(fs);
                 fs.Flush();
             }
         }
-        public void ReadBundleInfoFile(string filePath, out string dataFileCRC, out long dataFileSize)
+        public void ReadBundleInfoFile(string filePath, out uint dataFileCRC, out long dataFileSize)
         {
             byte[] binaryData = FileUtility.ReadAllBytes(filePath);
             BufferReader buffer = new BufferReader(binaryData);
-            dataFileCRC = buffer.ReadUTF8();
+            dataFileCRC = buffer.ReadUInt32();
             dataFileSize = buffer.ReadInt64();
         }
         #endregion
@@ -558,6 +619,21 @@ namespace YooAsset
                 FileLoadPath = filePath,
             };
             return DecryptionServices.LoadAssetBundleAsync(fileInfo);
+        }
+
+        /// <summary>
+        /// 加载加密资源文件
+        /// </summary>
+        public DecryptResult LoadEncryptedAssetBundleFallback(PackageBundle bundle)
+        {
+            string filePath = GetCacheBundleFileLoadPath(bundle);
+            var fileInfo = new DecryptFileInfo()
+            {
+                BundleName = bundle.BundleName,
+                FileLoadCRC = bundle.UnityCRC,
+                FileLoadPath = filePath,
+            };
+            return DecryptionServices.LoadAssetBundleFallback(fileInfo);
         }
         #endregion
     }

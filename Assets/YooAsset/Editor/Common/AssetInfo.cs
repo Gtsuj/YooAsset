@@ -63,6 +63,17 @@ namespace YooAsset.Editor
         }
 
         /// <summary>
+        /// 是否为图集资源
+        /// </summary>
+        public bool IsSpriteAtlas()
+        {
+            if (AssetType == typeof(UnityEngine.U2D.SpriteAtlas))
+                return true;
+            else
+                return false;
+        }
+
+        /// <summary>
         /// 是否为材质资源
         /// </summary>
         public bool IsMaterialAsset()

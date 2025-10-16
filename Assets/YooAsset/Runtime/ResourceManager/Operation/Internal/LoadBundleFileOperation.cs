@@ -14,7 +14,7 @@ namespace YooAsset
             Done,
         }
 
-        private readonly ResourceManager _resourceManager;
+        private readonly ResourceManager _resManager;
         private readonly List<ProviderOperation> _providers = new List<ProviderOperation>(100);
         private readonly List<ProviderOperation> _removeList = new List<ProviderOperation>(100);
         private FSLoadBundleOperation _loadBundleOp;
@@ -53,7 +53,7 @@ namespace YooAsset
 
         internal LoadBundleFileOperation(ResourceManager resourceManager, BundleInfo bundleInfo)
         {
-            _resourceManager = resourceManager;
+            _resManager = resourceManager;
             LoadBundleInfo = bundleInfo;
         }
         internal override void InternalStart()
@@ -73,7 +73,7 @@ namespace YooAsset
                 }
                 else
                 {
-                    if (_resourceManager.BundleLoadingIsBusy())
+                    if (_resManager.BundleLoadingIsBusy())
                         return;
                     _steps = ESteps.LoadBundleFile;
                 }
@@ -83,7 +83,8 @@ namespace YooAsset
             {
                 if (_loadBundleOp == null)
                 {
-                    _resourceManager.BundleLoadingCounter++;
+                    // 统计计数增加
+                    _resManager.BundleLoadingCounter++;
                     _loadBundleOp = LoadBundleInfo.LoadBundleFile();
                     _loadBundleOp.StartOperation();
                     AddChildOperation(_loadBundleOp);
@@ -121,7 +122,7 @@ namespace YooAsset
                 }
 
                 // 统计计数减少
-                _resourceManager.BundleLoadingCounter--;
+                _resManager.BundleLoadingCounter--;
             }
         }
         internal override void InternalWaitForAsyncComplete()
@@ -163,11 +164,12 @@ namespace YooAsset
         {
             IsDestroyed = true;
 
-            // Check fatal
+            // 注意：正在加载中的任务不可以销毁
+            if (_steps == ESteps.LoadBundleFile)
+                throw new Exception($"Bundle file loader is not done : {LoadBundleInfo.Bundle.BundleName}");
+
             if (RefCount > 0)
                 throw new Exception($"Bundle file loader ref is not zero : {LoadBundleInfo.Bundle.BundleName}");
-            if (IsDone == false)
-                throw new Exception($"Bundle file loader is not done : {LoadBundleInfo.Bundle.BundleName}");
 
             if (Result != null)
                 Result.UnloadBundleFile();
@@ -178,7 +180,8 @@ namespace YooAsset
         /// </summary>
         public bool CanDestroyLoader()
         {
-            if (IsDone == false)
+            // 注意：正在加载中的任务不可以销毁
+            if (_steps == ESteps.LoadBundleFile)
                 return false;
 
             if (RefCount > 0)
@@ -191,7 +194,7 @@ namespace YooAsset
             {
                 foreach (var bundleID in LoadBundleInfo.Bundle.ReferenceBundleIDs)
                 {
-                    if (_resourceManager.CheckBundleDestroyed(bundleID) == false)
+                    if (_resManager.CheckBundleDestroyed(bundleID) == false)
                         return false;
                 }
             }
@@ -233,7 +236,7 @@ namespace YooAsset
             // 移除资源提供者
             if (_removeList.Count > 0)
             {
-                _resourceManager.RemoveBundleProviders(_removeList);
+                _resManager.RemoveBundleProviders(_removeList);
                 _removeList.Clear();
             }
         }
