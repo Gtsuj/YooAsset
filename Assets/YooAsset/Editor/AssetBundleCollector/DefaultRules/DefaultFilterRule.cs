@@ -110,6 +110,11 @@ namespace YooAsset.Editor
     [DisplayName("自定义收集(后缀1|后缀2)")]
     public class CollectCustom : IFilterRule
     {
+        public string FindAssetType
+        {
+            get { return EAssetSearchType.All.ToString(); }
+        }
+
         public bool IsCollectAsset(FilterRuleData data)
         {
             string[] collectExtension = data.UserData.Split('|');

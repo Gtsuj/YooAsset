@@ -44,6 +44,11 @@ namespace YooAsset
             return decryptResult;
         }
 
+        public DecryptResult LoadAssetBundleFallback(DecryptFileInfo fileInfo)
+        {
+            throw new System.NotImplementedException();
+        }
+
         /// <summary>
         /// 获取解密的字节数据
         /// </summary>
