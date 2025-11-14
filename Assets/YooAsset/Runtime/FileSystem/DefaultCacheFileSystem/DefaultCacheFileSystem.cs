@@ -186,8 +186,8 @@ namespace YooAsset
             if (string.IsNullOrEmpty(options.ImportFilePath))
             {
                 // 注意：如果是解压文件系统类，这里会返回本地内置文件的下载路径
-                string mainURL = RemoteServices.GetRemoteMainURL(bundle.FileName);
-                string fallbackURL = RemoteServices.GetRemoteFallbackURL(bundle.FileName);
+                string mainURL = RemoteServices.GetRemoteAssetURL(bundle.FileName);
+                string fallbackURL = RemoteServices.GetRemoteAssetFallbackURL(bundle.FileName);
                 options.SetURL(mainURL, fallbackURL);
             }
             else
